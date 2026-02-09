@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,11 +6,21 @@ from pydantic import BaseModel, EmailStr
 
 app = FastAPI()
 
+def load_origins():
+    default_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+    env_origins = [
+        origin.strip()
+        for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    return sorted(set(default_origins + env_origins))
+
+
 # CORS
-origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
+origins = load_origins()
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,7 +47,6 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
-8
 init_db()
 
 # Data Models
