@@ -6,6 +6,7 @@ export default function EarlyAccessSection() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +26,16 @@ export default function EarlyAccessSection() {
     setStatus('loading');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await fetch(`${apiBaseUrl ?? ''}/api/join-waitlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || 'Something went wrong. Please try again.');
+      }
 
       setStatus('success');
       setMessage('You\'re on the list! Check your email for updates.');
@@ -37,7 +47,7 @@ export default function EarlyAccessSection() {
       }, 5000);
     } catch (error) {
       setStatus('error');
-      setMessage('Something went wrong. Please try again.');
+      setMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
     }
   };
 
