@@ -1,10 +1,13 @@
 import os
+import secrets
 import sqlite3
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, EmailStr
 
 app = FastAPI()
+security = HTTPBasic()
 
 
 def get_db_path() -> str:
@@ -79,6 +82,22 @@ class WaitlistUser(BaseModel):
     email: EmailStr
 
 
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    valid_username = os.getenv("ADMIN_USERNAME", "admin")
+    valid_password = os.getenv("ADMIN_PASSWORD", "admin123")
+
+    username_matches = secrets.compare_digest(credentials.username, valid_username)
+    password_matches = secrets.compare_digest(credentials.password, valid_password)
+
+    if not (username_matches and password_matches):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid admin credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    return credentials.username
+
 @app.post("/api/join-waitlist")
 def join_waitlist(user: WaitlistUser):
     conn = get_db_connection()
@@ -103,6 +122,15 @@ def get_waitlist_count():
     count = cursor.fetchone()[0]
     conn.close()
     return {"count": count}
+
+
+@app.get("/api/admin/waitlist")
+def get_waitlist_emails(_admin: str = Depends(verify_admin)):
+    conn = get_db_connection()
+    cursor = conn.execute("SELECT email FROM users ORDER BY id ASC")
+    emails = [row["email"] for row in cursor.fetchall()]
+    conn.close()
+    return {"emails": emails, "count": len(emails)}
 
 
 @app.get("/api/health")
