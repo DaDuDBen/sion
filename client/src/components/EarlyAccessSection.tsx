@@ -6,7 +6,8 @@ export default function EarlyAccessSection() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+  const apiBaseUrl = import.meta.env.PROD ? '' : (configuredApiBaseUrl ?? '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
