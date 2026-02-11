@@ -13,33 +13,67 @@ Yes — this repo can run fully on Vercel:
   - `GET /api/waitlist-count`
   - `GET /api/health`
 - `vercel.json` builds and serves the Vite frontend from `client/dist`
-- root `requirements.txt` so Vercel installs Python deps for `api/index.py`
 
-Because API and frontend are on the same Vercel project/domain, the frontend should call `/api/...` on the same domain.
-In production builds, the app now ignores `VITE_API_BASE_URL` and uses same-origin calls.
+Because API and frontend are on the same Vercel project/domain, your current frontend code can call `/api/...` directly (no cross-domain setup required).
 
 ## Deploy steps
 
 1. Push this repository.
 2. In Vercel, create/import a project from this repo.
-3. Keep root at repository root.
+3. Keep root at repository root (`/workspace/sion` in local terms).
 4. Deploy.
 
-Optional env vars:
+Optional environment variables (Project → Settings → Environment Variables):
 - `FRONTEND_ORIGINS` (comma-separated)
 - `FRONTEND_ORIGIN_REGEX` (example: `^https://.*\.vercel\.app$`)
 - `DB_PATH` (advanced override)
 
-## If it still fails (important)
-
-1. In Vercel project settings, remove old `VITE_API_BASE_URL` values pointing to Render/other domains.
-2. Redeploy the project.
-3. Check function logs for `api/index.py`.
-4. Verify:
-   - `GET https://<your-vercel-domain>/api/health` returns `{"status":"ok"}`
-
 ## Important data persistence note
 
 On Vercel serverless, writable storage is temporary (`/tmp`).
-SQLite can reset between cold starts/redeploys.
-For durable waitlist storage, migrate to hosted DB (Vercel Postgres/Neon/Supabase/etc.).
+If you keep SQLite in serverless, waitlist data can reset between cold starts/redeploys.
+
+For production persistence, move waitlist storage to a hosted DB (e.g. Vercel Postgres, Neon, Supabase, PlanetScale, etc.).
+
+## Quick verification after deploy
+
+- `GET https://<your-vercel-domain>/api/health` → `{"status":"ok"}`
+- submit email from the page and confirm `POST /api/join-waitlist` works
+## Deploying the backend on Render
+
+1. In Render, click **New +** → **Web Service** and connect this repository.
+2. Configure the service:
+   - **Name:** (any name, e.g. `sion-backend`)
+   - **Root Directory:** `server`
+   - **Runtime:** `Python 3`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. Add environment variables in Render:
+   - `FRONTEND_ORIGINS=https://threefive-oel9-82swslw2k-jpsanjjey-1004s-projects.vercel.app`
+   - `DB_PATH=/var/data/waitlist.db`
+4. (Recommended) In Render, attach a **Disk** and mount it at `/var/data` so waitlist data persists across deploys.
+5. Deploy the service and copy your Render URL (example: `https://sion-backend.onrender.com`).
+
+### Verify backend deployment
+
+After deploy, open:
+
+- `https://<your-render-service>.onrender.com/api/health`
+
+You should see:
+
+```json
+{"status":"ok"}
+```
+
+## Connecting the Vercel frontend to Render
+
+In your Vercel project settings, set:
+
+- `VITE_API_BASE_URL=https://<your-render-service>.onrender.com`
+
+Then redeploy Vercel so the frontend uses the new backend URL.
+
+## CORS note
+
+The backend only allows origins listed in `FRONTEND_ORIGINS` (plus localhost defaults for development), so keep this value in sync with your deployed frontend URL.
