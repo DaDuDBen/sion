@@ -16,7 +16,8 @@ This repo now uses `version: 2` builds/routes so `/api/*` is always routed to `a
 - `@vercel/static-build` builds `client/package.json` (`npm ci && npm run build`)
 - `@vercel/python` deploys `api/index.py`
 - route `^/api/(.*)` → `/api/index.py`
-- SPA fallback routes all non-file paths to `/index.html`
+- static assets are served from `/client/dist/assets/*`
+- SPA fallback serves `/client/dist/index.html`
 
 ## Deploy steps
 
@@ -52,3 +53,10 @@ A favicon file is added at `/favicon.svg` to avoid missing icon errors.
 On Vercel serverless, local writable storage is temporary (`/tmp`).
 SQLite may reset between cold starts/redeploys.
 For durable waitlist data, migrate to hosted DB (Vercel Postgres/Neon/Supabase/etc.).
+
+
+## If API works but frontend is blank
+
+If `/api/health` works but `/` is blank/404, it is usually a static-route target issue.
+This config explicitly serves the built Vite output from `/client/dist/*`.
+Redeploy after this commit and verify `/` and `/assets/...` return 200.
